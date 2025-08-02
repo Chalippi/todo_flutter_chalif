@@ -1,135 +1,87 @@
-// File: lib/services/api_service.dart
+// File ini buat komunikasi sama API. Semua request ke server lewat sini.
 
-import 'dart:convert'; // Diperlukan untuk jsonDecode
-import 'package:http/http.dart' as http; // Import package http
-import '../models/task.dart'; // Import model Task kita
-import 'dart:developer' as developer;
+import 'dart:convert'; // Buat decode/encode JSON
+import 'package:http/http.dart' as http; // Buat HTTP request
+import '../models/task.dart'; // Model tugas
+import 'dart:developer' as developer; // Buat log debugging
 
 class ApiService {
-  // Base URL dari API. Menyimpannya di satu tempat memudahkan jika nanti ada perubahan.
+  // URL dasar API. Kalau nanti pindah server, tinggal ganti di sini.
   static const String _baseUrl = 'https://jsonplaceholder.typicode.com/todos';
 
-  // Definisikan header di satu tempat agar mudah digunakan kembali
+  // Header standar buat semua request
   final Map<String, String> _headers = {
-    // Wajib ada untuk memberi tahu server tipe data apa yang kita terima
     'Accept': 'application/json, text/plain, */*',
-
-    // Wajib ada untuk memberi tahu server bahwa kita menggunakan koneksi yang aman
     'Accept-Language': 'en-US,en;q=0.9',
-
-    // Header User-Agent yang umum
-    'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
   };
 
+  // Ambil daftar tugas dari API
   Future<List<Task>> getTasks() async {
     try {
-      // Tambahkan parameter headers di sini
       final response = await http.get(Uri.parse(_baseUrl), headers: _headers);
 
-      developer.log(
-        'Status Code: ${response.statusCode}',
-        name: 'api.service.getTasks',
-      );
-      developer.log(
-        'Response Body: ${response.body}',
-        name: 'api.service.getTasks',
-      );
+      developer.log('Status Code: ${response.statusCode}', name: 'api.service.getTasks');
+      developer.log('Response Body: ${response.body}', name: 'api.service.getTasks');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => Task.fromJson(json)).toList();
       } else {
-        throw Exception(
-          'Gagal memuat tugas. Status Code: ${response.statusCode}',
-        );
+        throw Exception('Gagal ambil tugas. Status Code: ${response.statusCode}');
       }
     } catch (e) {
-      developer.log(
-        'Error saat getTasks: ${e.toString()}',
-        name: 'api.service.getTasks',
-      );
-      throw Exception('Gagal terhubung ke server. Cek koneksi internet Anda.');
+      developer.log('Error saat ambil tugas: ${e.toString()}', name: 'api.service.getTasks');
+      throw Exception('Gagal koneksi ke server. Cek internet kamu.');
     }
   }
 
-  // Di dalam class ApiService
-
+  // Tambah tugas baru ke API
   Future<Task?> addTask(String title) async {
     final response = await http.post(
       Uri.parse(_baseUrl),
-      headers: <String, String>{
-        // Kita gabungkan header default dengan header Content-Type
-        ..._headers, // Ini akan menambahkan 'User-Agent'
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(<String, dynamic>{
-        'title': title,
-        'completed': false,
-        'userId': 1,
-      }),
+      headers: {..._headers, 'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'title': title, 'completed': false, 'userId': 1}),
     );
 
     if (response.statusCode == 201) {
       return Task.fromJson(json.decode(response.body));
     } else {
-      // Log error di sini juga untuk debugging di masa depan
-      developer.log(
-        'Gagal menambah tugas. Status Code: ${response.statusCode}',
-      );
+      developer.log('Gagal tambah tugas. Status Code: ${response.statusCode}');
       developer.log('Response Body: ${response.body}');
       return null;
     }
   }
 
+  // Update tugas di API
   Future<Task?> updateTask(Task task) async {
-    final url = '$_baseUrl/${task.id}'; // Endpoint dengan ID
+    final url = '$_baseUrl/${task.id}';
 
     final response = await http.put(
       Uri.parse(url),
-      headers: <String, String>{
-        ..._headers, // Gunakan header yang sama seperti sebelumnya
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(<String, dynamic>{
-        'id': task.id,
-        'title': task.title,
-        'completed': task.completed,
-        'userId': task.userId,
-      }),
+      headers: {..._headers, 'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode(task.toJson()),
     );
 
     if (response.statusCode == 200) {
-      // Status sukses untuk PUT adalah 200 OK
       return Task.fromJson(json.decode(response.body));
     } else {
-      developer.log(
-        'Gagal mengupdate tugas. Status Code: ${response.statusCode}',
-      );
+      developer.log('Gagal update tugas. Status Code: ${response.statusCode}');
       developer.log('Response Body: ${response.body}');
       return null;
     }
   }
 
-  // services/api_service.dart
-
-  // ... (kode getTasks, addTask, updateTask Anda)
-
+  // Hapus tugas dari API
   Future<bool> deleteTask(int taskId) async {
-    final url = '$_baseUrl/$taskId'; // Endpoint dengan ID
+    final url = '$_baseUrl/$taskId';
 
-    final response = await http.delete(
-      Uri.parse(url),
-      headers: _headers, // Gunakan header yang sudah kita buat
-    );
+    final response = await http.delete(Uri.parse(url), headers: _headers);
 
-    // Status code 200 OK biasanya menandakan DELETE berhasil
     if (response.statusCode == 200) {
       return true;
     } else {
-      developer.log(
-        'Gagal menghapus tugas. Status Code: ${response.statusCode}',
-      );
+      developer.log('Gagal hapus tugas. Status Code: ${response.statusCode}');
       developer.log('Response Body: ${response.body}');
       return false;
     }

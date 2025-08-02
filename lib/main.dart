@@ -1,9 +1,10 @@
-// File: lib/main.dart
+// File utama aplikasi Flutter. Ini tempat aplikasi dimulai.
+// Kita daftarin semua provider dan layar utama di sini.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'providers/task_provider.dart'; // Import provider kita
-import 'screens/task_list_screen.dart'; // Import screen yang akan kita buat
+import 'providers/task_provider.dart'; // Provider buat ngatur data tugas
+import 'screens/task_list_screen.dart'; // Layar utama buat daftar tugas
 
 void main() {
   runApp(const MyApp());
@@ -14,16 +15,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Kita bungkus MaterialApp dengan MultiProvider
+    // Bungkus aplikasi dengan MultiProvider biar gampang ngatur state
     return MultiProvider(
       providers: [
-        // Daftarkan semua provider aplikasi kita di sini
+        // Daftarin semua provider di sini
         ChangeNotifierProvider(create: (_) => TaskProvider()),
       ],
       child: MaterialApp(
-        title: 'Manajemen Tugas',
-        theme: ThemeData(primarySwatch: Colors.blue),
-        home: TaskListScreen(), // Layar utama kita
+        title: 'Manajemen Tugas', // Judul aplikasi
+        theme: ThemeData(primarySwatch: Colors.blue), // Tema aplikasi
+        home: TaskListScreen(), // Layar pertama yang muncul
       ),
     );
   }

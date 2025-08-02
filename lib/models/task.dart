@@ -1,10 +1,12 @@
 // File: lib/models/task.dart
 
+// Model tugas. Ini struktur data buat tugas.
+
 class Task {
   final int userId;
   final int id;
-  String title; // Dibuat non-final agar bisa diubah title-nya
-  bool completed; // Dibuat non-final agar bisa diubah statusnya
+  String title; // Bisa diubah kalau judulnya diedit
+  bool completed; // Bisa diubah kalau statusnya selesai
 
   Task({
     required this.userId,
@@ -13,9 +15,7 @@ class Task {
     required this.completed,
   });
 
-  // Ini adalah 'factory constructor' untuk membuat instance Task
-  // dari sebuah struktur data JSON (Map<String, dynamic>).
-  // Sangat berguna saat kita mengambil data dari API.
+  // Buat instance Task dari JSON (data dari API)
   factory Task.fromJson(Map<String, dynamic> json) {
     return Task(
       userId: json['userId'],
@@ -25,8 +25,7 @@ class Task {
     );
   }
 
-  // Ini adalah method untuk mengubah instance Task menjadi JSON.
-  // Berguna saat kita mengirim data ke API (misalnya saat menambah atau mengedit).
+  // Ubah Task jadi JSON (buat dikirim ke API)
   Map<String, dynamic> toJson() {
     return {'userId': userId, 'id': id, 'title': title, 'completed': completed};
   }

@@ -1,5 +1,8 @@
 // File: lib/screens/task_list_screen.dart
 
+// Screen utama yang menampilkan daftar tugas. Menggunakan TaskProvider untuk mendapatkan data.
+// Berisi UI untuk menambah, mengedit, menghapus, dan menandai tugas sebagai selesai.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/task.dart'; // PERLU DI-IMPORT untuk _showEditTaskDialog
@@ -13,12 +16,10 @@ class TaskListScreen extends StatefulWidget {
 }
 
 class _TaskListScreenState extends State<TaskListScreen> {
-  // Kita panggil fetchTasks() sekali saja saat screen ini pertama kali dibuat.
   @override
   void initState() {
     super.initState();
-    // `listen: false` penting di dalam initState.
-    // Kita hanya ingin memanggil method, bukan mendengarkan perubahan di sini.
+    // Pas layar pertama kali dibuka, kita ambil data tugas dari provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<TaskProvider>(context, listen: false).fetchTasks();
     });
@@ -26,132 +27,119 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Kita "tonton" perubahan pada TaskProvider.
-    // Setiap kali notifyListeners() dipanggil, widget ini akan di-rebuild.
+    // Ambil data dari provider, kalau ada perubahan langsung update UI
     final taskProvider = context.watch<TaskProvider>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Daftar Tugas')),
-      body: _buildBody(taskProvider), // Kita buat method terpisah untuk body
+      body: _buildBody(taskProvider), // Bagian utama layar
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showAddTaskDialog(context);
-        },
+        onPressed: () => _showAddTaskDialog(context), // Tombol tambah tugas
         child: const Icon(Icons.add),
         tooltip: 'Tambah Tugas',
       ),
     );
   }
 
-  // Method untuk membangun body berdasarkan state dari provider
+  // Bagian utama layar, tampilkan sesuai kondisi
   Widget _buildBody(TaskProvider taskProvider) {
     if (taskProvider.isLoading && taskProvider.tasks.isEmpty) {
-      // Kondisi loading awal
+      // Kalau lagi loading dan belum ada data
       return const Center(child: CircularProgressIndicator());
     } else if (taskProvider.errorMessage != null) {
+      // Kalau ada error
       return Center(child: Text('Error: ${taskProvider.errorMessage}'));
     } else if (taskProvider.tasks.isEmpty) {
+      // Kalau nggak ada tugas sama sekali
       return const Center(child: Text('Tidak ada tugas.'));
     } else {
-      return ListView.builder(
-        itemCount: taskProvider.tasks.length,
-        itemBuilder: (context, index) {
-          // =================== PERBAIKAN DI SINI ===================
-          // 1. Gunakan 'taskProvider' yang dilewatkan dari parameter method _buildBody
-          final task = taskProvider.tasks[index];
-
-          // 2. Kita tidak perlu lagi memanggil Provider.of di sini, karena sudah ada.
-          //    Ini membuat kode lebih bersih dan efisien.
-
-          return Dismissible(
-            // Key WAJIB unik untuk setiap item. ID tugas sangat cocok untuk ini.
-            key: ValueKey(task.id),
-
-            // Arah yang diizinkan untuk swipe
-            direction: DismissDirection
-                .endToStart, // Hanya bisa swipe dari kanan ke kiri
-            // Widget yang muncul di belakang saat item di-swipe
-            background: Container(
-              color: Colors.red,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-
-            // Fungsi konfirmasi sebelum item benar-benar di-dismiss
-            confirmDismiss: (direction) async {
-              // Tampilkan dialog konfirmasi
-              return await showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: const Text("Konfirmasi"),
-                    content: const Text(
-                      "Apakah Anda yakin ingin menghapus tugas ini?",
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        onPressed: () => Navigator.of(
-                          context,
-                        ).pop(false), // Mengembalikan false
-                        child: const Text("BATAL"),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                        ),
-                        onPressed: () => Navigator.of(
-                          context,
-                        ).pop(true), // Mengembalikan true
-                        child: const Text("HAPUS"),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-
-            // Callback yang dipanggil SETELAH konfirmasi bernilai true
-            onDismissed: (direction) {
-              taskProvider.deleteTask(task.id);
-
-              // Tampilkan notifikasi (opsional tapi sangat direkomendasikan)
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Tugas "${task.title}" dihapus')),
-              );
-            },
-
-            // Child dari Dismissible adalah item list kita
-            child: CheckboxListTile(
-              title: Text(
-                task.title,
-                style: TextStyle(
-                  decoration: task.completed
-                      ? TextDecoration.lineThrough
-                      : null,
-                ),
-              ),
-              value: task.completed,
-              onChanged: (bool? newValue) {
-                taskProvider.toggleTaskStatus(task.id);
-              },
-              secondary: IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () {
-                  _showEditTaskDialog(context, task);
-                },
-              ),
-            ),
-          );
-          // ================= END OF PERBAIKAN ===================
-        },
-      );
+      // Kalau ada tugas, tampilkan daftar tugas
+      return _buildTaskList(taskProvider);
     }
   }
 
+  // Tampilkan daftar tugas
+  Widget _buildTaskList(TaskProvider taskProvider) {
+    return ListView.builder(
+      itemCount: taskProvider.tasks.length,
+      itemBuilder: (context, index) {
+        final task = taskProvider.tasks[index];
+        return _buildTaskItem(context, taskProvider, task);
+      },
+    );
+  }
+
+  // Tampilkan satu tugas dalam bentuk item
+  Widget _buildTaskItem(BuildContext context, TaskProvider taskProvider, Task task) {
+    return Dismissible(
+      key: ValueKey(task.id),
+      direction: DismissDirection.endToStart,
+      background: _buildDismissibleBackground(), // Background merah buat hapus
+      confirmDismiss: (direction) => _showDeleteConfirmationDialog(context), // Konfirmasi sebelum hapus
+      onDismissed: (direction) {
+        // Kalau tugas dihapus, kasih notifikasi
+        taskProvider.deleteTask(task.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Tugas "${task.title}" dihapus')),
+        );
+      },
+      child: CheckboxListTile(
+        title: Text(
+          task.title,
+          style: TextStyle(
+            decoration: task.completed ? TextDecoration.lineThrough : null, // Coret kalau selesai
+          ),
+        ),
+        value: task.completed,
+        onChanged: (bool? newValue) {
+          // Tandai tugas selesai atau belum
+          taskProvider.toggleTaskStatus(task.id);
+        },
+        secondary: IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () => _showEditTaskDialog(context, task), // Tombol edit tugas
+        ),
+      ),
+    );
+  }
+
+  // Background merah buat hapus tugas
+  Widget _buildDismissibleBackground() {
+    return Container(
+      color: Colors.red,
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: const Icon(Icons.delete, color: Colors.white),
+    );
+  }
+
+  // Dialog konfirmasi sebelum hapus tugas
+  Future<bool?> _showDeleteConfirmationDialog(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Konfirmasi"),
+          content: const Text("Apakah Anda yakin ingin menghapus tugas ini?"),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false), // Batal hapus
+              child: const Text("BATAL"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.of(context).pop(true), // Lanjut hapus
+              child: const Text("HAPUS"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Dialog untuk tambah tugas baru
   void _showAddTaskDialog(BuildContext context) {
     final TextEditingController _taskTitleController = TextEditingController();
-    // 'listen: false' karena ini di dalam callback, kita hanya panggil method
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
 
     showDialog(
@@ -166,20 +154,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
           actions: <Widget>[
             TextButton(
+              onPressed: () => Navigator.of(context).pop(), // Tutup dialog
               child: const Text("Batal"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
             ),
             ElevatedButton(
-              child: const Text("Simpan"),
               onPressed: () {
                 final String title = _taskTitleController.text;
                 if (title.isNotEmpty) {
-                  taskProvider.addTask(title);
+                  taskProvider.addTask(title); // Tambah tugas ke provider
                   Navigator.of(context).pop();
                 }
               },
+              child: const Text("Simpan"),
             ),
           ],
         );
@@ -187,10 +173,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
+  // Dialog untuk edit tugas
   void _showEditTaskDialog(BuildContext context, Task task) {
-    final TextEditingController _taskTitleController = TextEditingController(
-      text: task.title,
-    );
+    final TextEditingController _taskTitleController = TextEditingController(text: task.title);
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
 
     showDialog(
@@ -205,18 +190,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
           actions: <Widget>[
             TextButton(
+              onPressed: () => Navigator.of(context).pop(), // Tutup dialog
               child: const Text("Batal"),
-              onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
-              child: const Text("Simpan"),
               onPressed: () {
                 final String newTitle = _taskTitleController.text;
                 if (newTitle.isNotEmpty) {
-                  taskProvider.updateTaskTitle(task.id, newTitle);
+                  taskProvider.updateTaskTitle(task.id, newTitle); // Update judul tugas
                   Navigator.of(context).pop();
                 }
               },
+              child: const Text("Simpan"),
             ),
           ],
         );
